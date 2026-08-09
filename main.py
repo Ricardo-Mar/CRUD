@@ -1,3 +1,4 @@
+from idlelib import query
 from venv import create  #CRIANDO O CRUD
 
 import mysql.connector
@@ -16,8 +17,8 @@ email = "mariazinha@gmail.com"
 cpf = "123.123.123-08"
 telefone = "+55 79 91111-1111"
 data_de_nascimento = "2005/01/01"
-criar = f'INSERT INTO usuarios (Nome, Email, CPF, Telefone, Data_de_Nascimento) VALUES ("{nome}", "{email}", "{cpf}", "{telefone}", "{data_de_nascimento}")'
-cursor.execute(criar)
+criar = 'INSERT INTO usuarios (nome, email, cpf, telefone, data_de_nascimento) VALUES (%s, %s, %s, %s, %s)'
+cursor.execute(criar, (nome, email, cpf, telefone, data_de_nascimento))
 conector.commit() #edita o banco de dados
 
 
@@ -30,8 +31,7 @@ print(resultado)
 
 #UPDATE
 nome2 = "joao"
-atualizar = f'UPDATE usuarios SET Nome = "{nome2}" WHERE Nome = "{nome}"'
-cursor.execute(atualizar) #atualiza o valor do banco de dados
+cursor.execute(f'UPDATE usuarios SET Nome = %s  WHERE Nome = %s', (nome2, nome)) #atualiza o valor do banco de dados
 conector.commit()
 
 #READ
@@ -42,8 +42,7 @@ print(resultado)
 
 
 #DELETE
-deletar = f'DELETE FROM usuarios WHERE Nome = "{nome2}";'
-cursor.execute(deletar)
+cursor.execute("DELETE FROM usuarios WHERE Nome = %s", (nome2,))
 conector.commit()
 
 #READ
