@@ -7,16 +7,14 @@ from flask import render_template, request, jsonify
 # Define os dados obrigatórios para o cadastro/edição de usuário
 CAMPOS_OBRIGATORIOS = ["nome", "email", "cpf", "telefone", "data_nascimento"]
 
-# Colunas devolvidas em toda consulta de usuário (mesma ordem sempre,
-# pra bater com os índices usados no script.js)
+# Colunas devolvidas em todas consultas de usuário
 SELECT_USUARIO = (
     "SELECT ID, Nome, Email, CPF, Telefone, Data_de_Nascimento, Data_de_Cadastro, Ativo "
     "FROM usuarios"
 )
 
-
+# Valida se o JSON tem todos os campos obrigatórios
 def json_valido(dados):
-    """Valida se o JSON recebido tem todos os campos obrigatórios preenchidos."""
     if not dados:
         return False
     return all(str(dados.get(campo, "")).strip() for campo in CAMPOS_OBRIGATORIOS)
@@ -191,7 +189,6 @@ def deletarUsuario(usuario_id):
         cursor.execute("UPDATE usuarios SET Ativo = 0 WHERE ID = %s AND Ativo = 1", (usuario_id,))
         conector.commit()
         linhas_atualizadas = cursor.rowcount
-
         if linhas_atualizadas == 0:
             return jsonify({"erro": "Usuário não encontrado."}), 404
         return jsonify({"mensagem": "Usuário excluído"})
