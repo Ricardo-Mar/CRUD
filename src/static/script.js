@@ -7,41 +7,13 @@ const formTitle = document.getElementById("form-title");
 const submitBtn = document.getElementById("submit-btn");
 const cancelBtn = document.getElementById("cancel-btn");
 const idOriginalInput = document.getElementById("id-original");
+const buscaInput = document.getElementById("busca-input");
+const buscaBtn = document.getElementById("busca-btn");
 
-let usuarioParaExcluir = null;
-
-// ---------- Toast ----------
-function toast(msg, type = "ok") {
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.className = "show " + type;
-  setTimeout(() => { el.className = ""; }, 2800);
-}
-
-// ---------- Validação ----------
-function setFieldError(id, hasError) {
-  document.getElementById(id).closest(".field").classList.toggle("has-error", hasError);
-}
-
-function validarFormulario() {
-  let valido = true;
-  const nome = document.getElementById("nome").value.trim();
-  const email = document.getElementById("email").value.trim();
-  const cpf = document.getElementById("cpf").value.trim();
-  const telefone = document.getElementById("telefone").value.trim();
-  const nascimento = document.getElementById("data_nascimento").value.trim();
-
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const cpfRegex = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/;
-
-  setFieldError("nome", !nome); if (!nome) valido = false;
-  setFieldError("email", !emailRegex.test(email)); if (!emailRegex.test(email)) valido = false;
-  setFieldError("cpf", !cpfRegex.test(cpf)); if (!cpfRegex.test(cpf)) valido = false;
-  setFieldError("telefone", !telefone); if (!telefone) valido = false;
-  setFieldError("data_nascimento", !nascimento); if (!nascimento) valido = false;
-
-  return valido;
-}
+// A API devolve cada usuário como array (sem dictionary=True no cursor),
+// na mesma ordem das colunas escolhidas no SELECT_USUARIO (views.py):
+// [ID, Nome, Email, CPF, Telefone, Data_de_Nascimento, Data_de_Cadastro, Ativo]
+const COL = { ID: 0, NOME: 1, EMAIL: 2, CPF: 3, TELEFONE: 4, NASCIMENTO: 5 };
 
 // ---------- Renderização da lista ----------
 function renderUsuarios(lista) {
@@ -58,22 +30,22 @@ function renderUsuarios(lista) {
     card.className = "user-card";
     card.innerHTML = `
       <div class="u-top">
-        <p class="u-nome">${escapeHtml(u.Nome)}</p>
-        <span class="u-id">#${u.ID}</span>
+        <p class="u-nome">${escapeHtml(u[COL.NOME])}</p>
+        <span class="u-id">#${u[COL.ID]}</span>
       </div>
       <dl>
-        <div><dt>E-mail</dt><dd>${escapeHtml(u.Email)}</dd></div>
-        <div><dt>CPF</dt><dd>${escapeHtml(u.CPF)}</dd></div>
-        <div><dt>Telefone</dt><dd>${escapeHtml(u.Telefone)}</dd></div>
-        <div><dt>Nasc.</dt><dd>${escapeHtml(String(u.Data_de_Nascimento).slice(0,10))}</dd></div>
+        <div><dt>E-mail</dt><dd>${escapeHtml(u[COL.EMAIL])}</dd></div>
+        <div><dt>CPF</dt><dd>${escapeHtml(u[COL.CPF])}</dd></div>
+        <div><dt>Telefone</dt><dd>${escapeHtml(u[COL.TELEFONE])}</dd></div>
+        <div><dt>Nasc.</dt><dd>${escapeHtml(u[COL.NASCIMENTO])}</dd></div>
       </dl>
       <div class="u-actions">
-        <button class="btn-edit">Editar</button>
-        <button class="btn-delete">Excluir</button>
+        <button type="button" class="btn-edit">Editar</button>
+        <button type="button" class="btn-delete">Excluir</button>
       </div>
     `;
     card.querySelector(".btn-edit").addEventListener("click", () => entrarModoEdicao(u));
-    card.querySelector(".btn-delete").addEventListener("click", () => abrirModalExclusao(u));
+    card.querySelector(".btn-delete").addEventListener("click", () => excluirUsuario(u));
     grid.appendChild(card);
   });
 }
@@ -84,26 +56,35 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ---------- Carregar usuários (READ) ----------
-async function carregarUsuarios() {
-  try {
-    const resp = await fetch(API_URL);
-    if (!resp.ok) throw new Error("Falha ao buscar usuários");
-    const dados = await resp.json();
-    renderUsuarios(dados);
-  } catch (e) {
-    toast("Não foi possível carregar os usuários.", "err");
+// ---------- Carregar / consultar usuários (READ) ----------
+// busca vazia -> lista todos; só números -> consulta por ID; texto -> busca por nome
+async function carregarUsuarios(busca = "") {
+  if (/^\d+$/.test(busca)) {
+    const resp = await fetch(`${API_URL}/${busca}`);
+    const usuario = resp.ok ? await resp.json() : null;
+    renderUsuarios(usuario ? [usuario] : []);
+    return;
   }
+
+  const url = busca ? `${API_URL}?nome=${encodeURIComponent(busca)}` : API_URL;
+  const resp = await fetch(url);
+  const dados = await resp.json();
+  renderUsuarios(dados);
 }
 
+buscaBtn.addEventListener("click", () => carregarUsuarios(buscaInput.value.trim()));
+buscaInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") carregarUsuarios(buscaInput.value.trim());
+});
+
 // ---------- Modo edição ----------
-function entrarModoEdicao(usuario) {
-  document.getElementById("nome").value = usuario.Nome;
-  document.getElementById("email").value = usuario.Email;
-  document.getElementById("cpf").value = usuario.CPF;
-  document.getElementById("telefone").value = usuario.Telefone;
-  document.getElementById("data_nascimento").value = String(usuario.Data_de_Nascimento).slice(0, 10);
-  idOriginalInput.value = usuario.ID;
+function entrarModoEdicao(u) {
+  document.getElementById("nome").value = u[COL.NOME];
+  document.getElementById("email").value = u[COL.EMAIL];
+  document.getElementById("cpf").value = u[COL.CPF];
+  document.getElementById("telefone").value = u[COL.TELEFONE];
+  document.getElementById("data_nascimento").value = u[COL.NASCIMENTO];
+  idOriginalInput.value = u[COL.ID];
 
   formTitle.textContent = "Editar usuário";
   submitBtn.textContent = "Salvar alterações";
@@ -117,7 +98,6 @@ function sairModoEdicao() {
   formTitle.textContent = "Novo usuário";
   submitBtn.textContent = "Cadastrar";
   cancelBtn.style.display = "none";
-  ["nome", "email", "cpf", "telefone", "data_nascimento"].forEach(id => setFieldError(id, false));
 }
 
 cancelBtn.addEventListener("click", sairModoEdicao);
@@ -125,10 +105,6 @@ cancelBtn.addEventListener("click", sairModoEdicao);
 // ---------- Criar / Atualizar (CREATE / UPDATE) ----------
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (!validarFormulario()) {
-    toast("Confira os campos destacados.", "err");
-    return;
-  }
 
   const payload = {
     nome: document.getElementById("nome").value.trim(),
@@ -142,54 +118,37 @@ form.addEventListener("submit", async (e) => {
   const url = editando ? `${API_URL}/${idOriginalInput.value}` : API_URL;
   const method = editando ? "PUT" : "POST";
 
-  try {
-    const resp = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!resp.ok) throw new Error("Erro na requisição");
+  const resp = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    toast(editando ? "Usuário atualizado com sucesso." : "Usuário cadastrado com sucesso.");
-    sairModoEdicao();
-    carregarUsuarios();
-  } catch (err) {
-    toast("Não foi possível salvar o usuário.", "err");
+  if (!resp.ok) {
+    const erro = await resp.json().catch(() => null);
+    alert(erro?.erro || "Não foi possível salvar o usuário.");
+    return;
   }
+
+  sairModoEdicao();
+  carregarUsuarios(buscaInput.value.trim());
 });
 
 // ---------- Exclusão (DELETE) ----------
-const modalOverlay = document.getElementById("modal-overlay");
-const modalUserName = document.getElementById("modal-user-name");
+async function excluirUsuario(u) {
+  const confirmar = confirm(`Tem certeza que deseja excluir ${u[COL.NOME]}?`);
+  if (!confirmar) return;
 
-function abrirModalExclusao(usuario) {
-  usuarioParaExcluir = usuario;
-  modalUserName.textContent = usuario.Nome;
-  modalOverlay.classList.add("show");
-}
-
-function fecharModal() {
-  modalOverlay.classList.remove("show");
-  usuarioParaExcluir = null;
-}
-
-document.getElementById("modal-cancel").addEventListener("click", fecharModal);
-modalOverlay.addEventListener("click", (e) => { if (e.target === modalOverlay) fecharModal(); });
-
-document.getElementById("modal-confirm").addEventListener("click", async () => {
-  if (!usuarioParaExcluir) return;
-  try {
-    const resp = await fetch(`${API_URL}/${usuarioParaExcluir.ID}`, { method: "DELETE" });
-    if (!resp.ok) throw new Error("Erro ao excluir");
-    toast("Usuário excluído.");
-    if (idOriginalInput.value == usuarioParaExcluir.ID) sairModoEdicao();
-    carregarUsuarios();
-  } catch (err) {
-    toast("Não foi possível excluir o usuário.", "err");
-  } finally {
-    fecharModal();
+  const resp = await fetch(`${API_URL}/${u[COL.ID]}`, { method: "DELETE" });
+  if (!resp.ok) {
+    const erro = await resp.json().catch(() => null);
+    alert(erro?.erro || "Não foi possível excluir o usuário.");
+    return;
   }
-});
+
+  if (idOriginalInput.value == u[COL.ID]) sairModoEdicao();
+  carregarUsuarios(buscaInput.value.trim());
+}
 
 // ---------- Início ----------
 carregarUsuarios();
