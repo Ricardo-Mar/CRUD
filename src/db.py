@@ -1,12 +1,4 @@
-import mysql.connector
+from flask_sqlalchemy import SQLAlchemy
 
-def conexao():
-    """Abre uma nova conexão com o banco.
-    Deve ser chamada uma vez a cada requisição (nunca reaproveitada
-    entre chamadas diferentes) e sempre fechada no fim do uso."""
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",
-        passwd="7410",
-        database="crud",
-    )
+# Instância única do SQLAlchemy, inicializada em app.py via db.init_app(app).
+db = SQLAlchemy()

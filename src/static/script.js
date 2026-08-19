@@ -9,6 +9,14 @@ const cancelBtn = document.getElementById("cancel-btn");
 const idOriginalInput = document.getElementById("id-original");
 const buscaInput = document.getElementById("busca-input");
 const buscaBtn = document.getElementById("busca-btn");
+const dataNascimentoInput = document.getElementById("data_nascimento");
+
+// Trava o range de nascimento entre 1900 e hoje. Sem isso, o input
+// type="date" nativo deixa digitar anos absurdos (ex: 200000), já que
+// sem min/max o navegador aceita qualquer ano até 275760.
+const hoje = new Date().toISOString().split("T")[0];
+dataNascimentoInput.max = hoje;
+dataNascimentoInput.min = "1900-01-01";
 
 // A API devolve cada usuário como array (sem dictionary=True no cursor),
 // na mesma ordem das colunas escolhidas no SELECT_USUARIO (views.py):
@@ -109,7 +117,7 @@ form.addEventListener("submit", async (e) => {
   const payload = {
     nome: document.getElementById("nome").value.trim(),
     email: document.getElementById("email").value.trim(),
-    cpf: document.getElementById("cpf").value.trim(),
+    cpf: document.getElementById("cpf").value.replace(/\D/g, ""), // Remove tudo que não for número
     telefone: document.getElementById("telefone").value.trim(),
     data_nascimento: document.getElementById("data_nascimento").value.trim(),
   };
